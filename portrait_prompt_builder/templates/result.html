@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<!--
+    result.html — Result page for the Portrait Prompt Builder.
+    Displays the generated prompt with copy-to-clipboard and download buttons.
+    Jinja2 template rendered by the Flask generate route.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Portrait Prompt — Portrait Prompt Builder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta name="description" content="Your generated AI image prompt for the childhood self-portrait trend, ready to paste into ChatGPT or Gemini.">
+</head>
+<body>
+    <div class="page-wrapper">
+
+        <!-- ===== HEADER ===== -->
+        <header class="site-header">
+            <div class="header-inner">
+                <div class="logo-lockup">
+                    <span class="logo-icon" aria-hidden="true">📷</span>
+                    <div class="logo-text">
+                        <h1 class="site-title">Portrait Prompt Builder</h1>
+                        <p class="site-tagline">Generate your childhood self-portrait prompt</p>
+                    </div>
+                </div>
+                <nav class="site-nav" aria-label="Site navigation">
+                    <a href="/" class="nav-link">Create</a>
+                    <a href="/about" class="nav-link">About</a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- ===== MAIN CONTENT ===== -->
+        <main class="main-content" id="main">
+
+            <!-- ===== SUCCESS HERO ===== -->
+            <section class="result-hero" aria-labelledby="result-heading">
+                <div class="result-hero__badge" aria-hidden="true">✨</div>
+                <h2 id="result-heading" class="result-hero__title">Your Prompt is Ready!</h2>
+                <p class="result-hero__subtitle">
+                    Copy the prompt below and paste it directly into
+                    <strong>ChatGPT</strong> or <strong>Gemini</strong> to generate your portrait.
+                </p>
+            </section>
+
+            <!-- ===== PROMPT SUMMARY METADATA ===== -->
+            <section class="prompt-meta" aria-label="Prompt summary">
+                <div class="meta-pills">
+                    <span class="meta-pill meta-pill--preset">
+                        <span class="meta-pill__icon" aria-hidden="true">🎨</span>
+                        <span class="meta-pill__label">{{ metadata.preset_label }}</span>
+                    </span>
+                    <span class="meta-pill meta-pill--decade">
+                        <span class="meta-pill__icon" aria-hidden="true">📅</span>
+                        <span class="meta-pill__label">{{ metadata.decade }}</span>
+                    </span>
+                    <span class="meta-pill meta-pill--mood">
+                        <span class="meta-pill__icon" aria-hidden="true">🎭</span>
+                        <span class="meta-pill__label">{{ metadata.mood | title }}</span>
+                    </span>
+                    <span class="meta-pill meta-pill--length">
+                        <span class="meta-pill__icon" aria-hidden="true">📝</span>
+                        <span class="meta-pill__label">{{ metadata.word_count }} words</span>
+                    </span>
+                </div>
+            </section>
+
+            <!-- ===== PROMPT DISPLAY CARD ===== -->
+            <section class="prompt-section" aria-labelledby="prompt-section-heading">
+                <h3 id="prompt-section-heading" class="prompt-section__heading">Your Generated Prompt</h3>
+
+                <div class="prompt-card" id="prompt-card">
+                    <!-- Film-strip decoration -->
+                    <div class="prompt-card__film-strip" aria-hidden="true">
+                        <span class="film-hole"></span>
+                        <span class="film-hole"></span>
+                        <span class="film-hole"></span>
+                        <span class="film-hole"></span>
+                        <span class="film-hole"></span>
+                    </div>
+
+                    <div class="prompt-card__body">
+                        <!-- The prompt text itself -->
+                        <div
+                            class="prompt-text"
+                            id="prompt-text"
+                            role="textbox"
+                            aria-multiline="true"
+                            aria-readonly="true"
+                            aria-label="Generated portrait prompt text"
+                            tabindex="0"
+                        >{{ prompt }}</div>
+
+                        <!-- Hidden textarea for clipboard fallback -->
+                        <textarea
+                            id="prompt-textarea"
+                            class="prompt-textarea sr-only"
+                            readonly
+                            aria-hidden="true"
+                        >{{ prompt }}</textarea>
+                    </div>
+
+                    <!-- Film-strip decoration (bottom) -->
+                    <div class="prompt-card__film-strip prompt-card__film-strip--bottom" aria-hidden="true">
+                        <span class="film-hole"></span>
+                        <span class="film-hole"></span>
+                        <span class="film-hole"></span>
+                        <span class="film-hole"></span>
+                        <span class="film-hole"></span>
+                    </div>
+                </div>
+
+                <!-- ===== ACTION BUTTONS ===== -->
+                <div class="prompt-actions" role="group" aria-label="Prompt actions">
+
+                    <!-- Copy to clipboard -->
+                    <button
+                        type="button"
+                        class="btn btn--primary btn--copy"
+                        id="copy-btn"
+                        data-prompt-target="prompt-textarea"
+                        aria-live="polite"
+                        aria-label="Copy prompt to clipboard"
+                    >
+                        <span class="btn__icon" aria-hidden="true">📋</span>
+                        <span class="btn__text" id="copy-btn-text">Copy to Clipboard</span>
+                    </button>
+
+                    <!-- Download as .txt -->
+                    <button
+                        type="button"
+                        class="btn btn--secondary btn--download"
+                        id="download-btn"
+                        data-filename="portrait-prompt-{{ metadata.decade }}-{{ metadata.mood }}.txt"
+                        data-prompt-target="prompt-textarea"
+                        aria-label="Download prompt as text file"
+                    >
+                        <span class="btn__icon" aria-hidden="true">💾</span>
+                        <span class="btn__text">Download .txt</span>
+                    </button>
+
+                </div>
+
+                <!-- Copy success/error toast notification -->
+                <div
+                    id="copy-toast"
+                    class="toast"
+                    role="status"
+                    aria-live="polite"
+                    aria-atomic="true"
+                    hidden
+                >
+                    <span class="toast__icon" aria-hidden="true">✅</span>
+                    <span class="toast__message" id="toast-message">Prompt copied to clipboard!</span>
+                </div>
+
+            </section>
+
+            <!-- ===== PRESET DETAILS ===== -->
+            <section class="preset-detail-section" aria-labelledby="preset-detail-heading">
+                <h3 id="preset-detail-heading" class="preset-detail-section__heading">About the <em>{{ preset.label }}</em> Preset</h3>
+                <div class="preset-detail-card">
+                    <p class="preset-detail-card__description">{{ preset.description }}</p>
+                    <dl class="preset-detail-card__spec-list">
+                        {% if preset.film_stock %}
+                        <div class="spec-row">
+                            <dt class="spec-row__term">Film Stock</dt>
+                            <dd class="spec-row__detail">{{ preset.film_stock }}</dd>
+                        </div>
+                        {% endif %}
+                        <div class="spec-row">
+                            <dt class="spec-row__term">Lighting</dt>
+                            <dd class="spec-row__detail">{{ preset.lighting }}</dd>
+                        </div>
+                        <div class="spec-row">
+                            <dt class="spec-row__term">Lens</dt>
+                            <dd class="spec-row__detail">{{ preset.lens }}</dd>
+                        </div>
+                        <div class="spec-row">
+                            <dt class="spec-row__term">Colour Grade</dt>
+                            <dd class="spec-row__detail">{{ preset.colour_grade }}</dd>
+                        </div>
+                        <div class="spec-row">
+                            <dt class="spec-row__term">Style Tags</dt>
+                            <dd class="spec-row__detail">
+                                {% for tag in preset.mood_modifiers %}
+                                <span class="preset-tag">{{ tag }}</span>
+                                {% endfor %}
+                                {% for tag in preset.technical_tags %}
+                                <span class="preset-tag preset-tag--technical">{{ tag }}</span>
+                                {% endfor %}
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+            </section>
+
+            <!-- ===== YOUR INPUTS SUMMARY ===== -->
+            <section class="inputs-summary" aria-labelledby="inputs-summary-heading">
+                <h3 id="inputs-summary-heading" class="inputs-summary__heading">What You Provided</h3>
+                <dl class="inputs-summary__list">
+                    <div class="summary-row">
+                        <dt class="summary-row__term">Decade</dt>
+                        <dd class="summary-row__detail">{{ inputs.decade }}</dd>
+                    </div>
+                    <div class="summary-row">
+                        <dt class="summary-row__term">Setting</dt>
+                        <dd class="summary-row__detail">{{ inputs.setting }}</dd>
+                    </div>
+                    <div class="summary-row">
+                        <dt class="summary-row__term">Clothing</dt>
+                        <dd class="summary-row__detail">{{ inputs.clothing }}</dd>
+                    </div>
+                    {% if inputs.features %}
+                    <div class="summary-row">
+                        <dt class="summary-row__term">Features</dt>
+                        <dd class="summary-row__detail">{{ inputs.features }}</dd>
+                    </div>
+                    {% endif %}
+                    <div class="summary-row">
+                        <dt class="summary-row__term">Mood</dt>
+                        <dd class="summary-row__detail">{{ inputs.mood | title }}</dd>
+                    </div>
+                    {% if inputs.gender %}
+                    <div class="summary-row">
+                        <dt class="summary-row__term">Gender</dt>
+                        <dd class="summary-row__detail">{{ inputs.gender | title }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if inputs.age %}
+                    <div class="summary-row">
+                        <dt class="summary-row__term">Age</dt>
+                        <dd class="summary-row__detail">{{ inputs.age }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if inputs.camera_style %}
+                    <div class="summary-row">
+                        <dt class="summary-row__term">Camera Notes</dt>
+                        <dd class="summary-row__detail">{{ inputs.camera_style }}</dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </section>
+
+            <!-- ===== CTA — start over ===== -->
+            <section class="cta-section" aria-label="Create another prompt">
+                <div class="cta-card">
+                    <p class="cta-card__text">Want to try a different look or decade?</p>
+                    <a href="/" class="btn btn--outline btn--create-another">
+                        <span aria-hidden="true">🔄</span> Create Another Prompt
+                    </a>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- ===== FOOTER ===== -->
+        <footer class="site-footer">
+            <div class="footer-inner">
+                <p class="footer__copy">
+                    Portrait Prompt Builder &mdash; crafted for the AI portrait generation trend.
+                </p>
+                <p class="footer__note">
+                    No data is stored. All prompts are generated locally on your device.
+                </p>
+            </div>
+        </footer>
+
+    </div><!-- / page-wrapper -->
+
+    <!-- Inline the prompt text as a JS variable for reliable clipboard & download access -->
+    <script>
+        // Safely pass the prompt to JS without relying on DOM scraping.
+        // Jinja2 tojson filter produces a properly-escaped JSON string.
+        window.PORTRAIT_PROMPT = {{ prompt | tojson }};
+        window.PORTRAIT_FILENAME = {{ ('portrait-prompt-' + metadata.decade + '-' + metadata.mood + '.txt') | tojson }};
+    </script>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
