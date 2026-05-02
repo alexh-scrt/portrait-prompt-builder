@@ -110,6 +110,47 @@ class TestIndexRoute:
         body = response.data.decode("utf-8")
         assert "1980s" in body or "1990s" in body
 
+    def test_get_index_contains_all_five_presets(self, client: FlaskClient) -> None:
+        response = client.get("/")
+        body = response.data.decode("utf-8")
+        for preset in ALL_PRESETS:
+            assert preset["id"] in body, f"Preset {preset['id']!r} not found in index page"
+
+    def test_get_index_contains_all_decades(self, client: FlaskClient) -> None:
+        response = client.get("/")
+        body = response.data.decode("utf-8")
+        for decade in VALID_DECADES:
+            assert decade in body, f"Decade {decade!r} not found in index page"
+
+    def test_get_index_contains_site_title(self, client: FlaskClient) -> None:
+        response = client.get("/")
+        body = response.data.decode("utf-8")
+        assert "Portrait Prompt Builder" in body
+
+    def test_get_index_contains_generate_action(self, client: FlaskClient) -> None:
+        response = client.get("/")
+        body = response.data.decode("utf-8")
+        assert "/generate" in body
+
+    def test_get_index_contains_action_method_post(self, client: FlaskClient) -> None:
+        response = client.get("/")
+        body = response.data.decode("utf-8")
+        assert "method" in body.lower()
+        # Should have a POST form
+        assert "post" in body.lower()
+
+    def test_get_index_does_not_contain_errors_on_fresh_load(self, client: FlaskClient) -> None:
+        response = client.get("/")
+        body = response.data.decode("utf-8")
+        # Fresh page load should not show error blocks
+        assert "alert--error" not in body
+
+    def test_get_index_contains_all_moods(self, client: FlaskClient) -> None:
+        response = client.get("/")
+        body = response.data.decode("utf-8")
+        for mood in VALID_MOODS:
+            assert mood in body, f"Mood {mood!r} not found in index page"
+
 
 # ---------------------------------------------------------------------------
 # Tests: POST /generate — valid inputs
@@ -160,11 +201,72 @@ class TestGenerateRouteValid:
         response = client.post("/generate", data=MINIMAL_FORM_DATA)
         assert len(response.data) > 200
 
+    def test_post_generate_contains_clothing_fragment(self, client: FlaskClient) -> None:
+        data = _make_form(clothing="a bright yellow raincoat")
+        response = client.post("/generate", data=data)
+        body = response.data.decode("utf-8")
+        assert "yellow raincoat" in body
+
+    def test_post_generate_contains_copy_button(self, client: FlaskClient) -> None:
+        response = client.post("/generate", data=MINIMAL_FORM_DATA)
+        body = response.data.decode("utf-8")
+        # Result page should have copy-to-clipboard functionality
+        assert "copy" in body.lower() or "clipboard" in body.lower()
+
+    def test_post_generate_contains_download_button(self, client: FlaskClient) -> None:
+        response = client.post("/generate", data=MINIMAL_FORM_DATA)
+        body = response.data.decode("utf-8")
+        assert "download" in body.lower() or ".txt" in body.lower()
+
+    def test_post_generate_contains_create_another_link(self, client: FlaskClient) -> None:
+        response = client.post("/generate", data=MINIMAL_FORM_DATA)
+        body = response.data.decode("utf-8")
+        assert 'href="/"' in body or "href='/'"
+
+    def test_post_generate_full_contains_camera_style(self, client: FlaskClient) -> None:
+        response = client.post("/generate", data=FULL_FORM_DATA)
+        body = response.data.decode("utf-8")
+        assert "medium format film" in body
+
+    def test_post_generate_full_contains_gender(self, client: FlaskClient) -> None:
+        response = client.post("/generate", data=FULL_FORM_DATA)
+        body = response.data.decode("utf-8")
+        assert "girl" in body.lower()
+
+    def test_post_generate_full_contains_age(self, client: FlaskClient) -> None:
+        response = client.post("/generate", data=FULL_FORM_DATA)
+        body = response.data.decode("utf-8")
+        assert "9" in body
+
+    def test_post_generate_result_page_has_prompt_text_element(self, client: FlaskClient) -> None:
+        response = client.post("/generate", data=MINIMAL_FORM_DATA)
+        body = response.data.decode("utf-8")
+        assert "prompt-text" in body or "prompt_text" in body or "PORTRAIT_PROMPT" in body
+
+    def test_post_generate_result_page_contains_preset_details(self, client: FlaskClient) -> None:
+        response = client.post("/generate", data=MINIMAL_FORM_DATA)
+        body = response.data.decode("utf-8")
+        # The result page shows preset details
+        assert "Kodak Portra" in body or "Warm Kodak Film" in body
+
+    def test_post_generate_with_whitespace_stripped_values(self, client: FlaskClient) -> None:
+        data = _make_form(decade="  1980s  ", mood="  happy  ")
+        response = client.post("/generate", data=data)
+        # Whitespace should be stripped and still valid
+        assert response.status_code == 200
+
     @pytest.mark.parametrize("preset", ALL_PRESETS, ids=[p["id"] for p in ALL_PRESETS])
     def test_each_preset_returns_200(self, client: FlaskClient, preset: dict) -> None:
         data = _make_form(preset_id=preset["id"])
         response = client.post("/generate", data=data)
         assert response.status_code == 200
+
+    @pytest.mark.parametrize("preset", ALL_PRESETS, ids=[p["id"] for p in ALL_PRESETS])
+    def test_each_preset_label_in_response_body(self, client: FlaskClient, preset: dict) -> None:
+        data = _make_form(preset_id=preset["id"])
+        response = client.post("/generate", data=data)
+        body = response.data.decode("utf-8")
+        assert preset["label"] in body
 
     @pytest.mark.parametrize("decade", sorted(VALID_DECADES))
     def test_each_decade_returns_200(self, client: FlaskClient, decade: str) -> None:
@@ -172,9 +274,38 @@ class TestGenerateRouteValid:
         response = client.post("/generate", data=data)
         assert response.status_code == 200
 
+    @pytest.mark.parametrize("decade", sorted(VALID_DECADES))
+    def test_each_decade_appears_in_response_body(self, client: FlaskClient, decade: str) -> None:
+        data = _make_form(decade=decade)
+        response = client.post("/generate", data=data)
+        body = response.data.decode("utf-8")
+        assert decade in body
+
     @pytest.mark.parametrize("mood", sorted(VALID_MOODS))
     def test_each_mood_returns_200(self, client: FlaskClient, mood: str) -> None:
         data = _make_form(mood=mood)
+        response = client.post("/generate", data=data)
+        assert response.status_code == 200
+
+    def test_optional_fields_omitted_still_returns_200(self, client: FlaskClient) -> None:
+        """Submitting only required fields should succeed."""
+        data = {
+            "decade": "1970s",
+            "setting": "a farm with a red barn",
+            "clothing": "overalls and a flannel shirt",
+            "mood": "curious",
+            "preset_id": "cinematic_bw",
+        }
+        response = client.post("/generate", data=data)
+        assert response.status_code == 200
+
+    def test_all_optional_fields_included_returns_200(self, client: FlaskClient) -> None:
+        data = _make_form(
+            gender="boy",
+            age="10",
+            features="brown eyes and dark curly hair",
+            camera_style="pinhole camera aesthetic",
+        )
         response = client.post("/generate", data=data)
         assert response.status_code == 200
 
@@ -231,6 +362,11 @@ class TestGenerateRouteInvalid:
         response = client.post("/generate", data=data)
         assert response.status_code == 400
 
+    def test_invalid_gender_returns_400(self, client: FlaskClient) -> None:
+        data = _make_form(gender="robot")
+        response = client.post("/generate", data=data)
+        assert response.status_code == 400
+
     def test_invalid_inputs_response_contains_error_indication(self, client: FlaskClient) -> None:
         """The response body for invalid inputs should still serve the form page."""
         data = _make_form(decade="")
@@ -246,6 +382,46 @@ class TestGenerateRouteInvalid:
 
     def test_oversized_clothing_returns_400(self, client: FlaskClient) -> None:
         data = _make_form(clothing="y" * 201)
+        response = client.post("/generate", data=data)
+        assert response.status_code == 400
+
+    def test_oversized_features_returns_400(self, client: FlaskClient) -> None:
+        data = _make_form(features="z" * 301)
+        response = client.post("/generate", data=data)
+        assert response.status_code == 400
+
+    def test_oversized_camera_style_returns_400(self, client: FlaskClient) -> None:
+        data = _make_form(camera_style="c" * 201)
+        response = client.post("/generate", data=data)
+        assert response.status_code == 400
+
+    def test_invalid_inputs_response_is_html(self, client: FlaskClient) -> None:
+        data = _make_form(decade="")
+        response = client.post("/generate", data=data)
+        assert "text/html" in response.content_type
+
+    def test_invalid_inputs_response_not_empty(self, client: FlaskClient) -> None:
+        data = _make_form(preset_id="fake")
+        response = client.post("/generate", data=data)
+        assert len(response.data) > 0
+
+    def test_whitespace_decade_returns_400(self, client: FlaskClient) -> None:
+        data = _make_form(decade="   ")
+        response = client.post("/generate", data=data)
+        assert response.status_code == 400
+
+    def test_whitespace_setting_returns_400(self, client: FlaskClient) -> None:
+        data = _make_form(setting="   ")
+        response = client.post("/generate", data=data)
+        assert response.status_code == 400
+
+    def test_future_decade_returns_400(self, client: FlaskClient) -> None:
+        data = _make_form(decade="2050s")
+        response = client.post("/generate", data=data)
+        assert response.status_code == 400
+
+    def test_unknown_mood_returns_400(self, client: FlaskClient) -> None:
+        data = _make_form(mood="euphoric")
         response = client.post("/generate", data=data)
         assert response.status_code == 400
 
@@ -267,6 +443,18 @@ class TestAboutRoute:
         response = client.get("/about", follow_redirects=True)
         assert response.status_code == 200
 
+    def test_about_response_is_html(self, client: FlaskClient) -> None:
+        response = client.get("/about", follow_redirects=True)
+        assert "text/html" in response.content_type
+
+    def test_about_response_not_empty(self, client: FlaskClient) -> None:
+        response = client.get("/about", follow_redirects=True)
+        assert len(response.data) > 0
+
+    def test_about_does_not_raise_server_error(self, client: FlaskClient) -> None:
+        response = client.get("/about", follow_redirects=True)
+        assert response.status_code != 500
+
 
 # ---------------------------------------------------------------------------
 # Tests: 404 handling
@@ -283,6 +471,35 @@ class TestErrorHandlers:
     def test_404_response_is_not_empty(self, client: FlaskClient) -> None:
         response = client.get("/nonexistent")
         assert len(response.data) > 0
+
+    def test_another_unknown_path_returns_404(self, client: FlaskClient) -> None:
+        response = client.get("/completely/invalid/path")
+        assert response.status_code == 404
+
+    def test_404_response_is_html(self, client: FlaskClient) -> None:
+        response = client.get("/does-not-exist")
+        assert "text/html" in response.content_type
+
+
+# ---------------------------------------------------------------------------
+# Tests: Method not allowed
+# ---------------------------------------------------------------------------
+
+
+class TestMethodNotAllowed:
+    """Tests for HTTP method restrictions."""
+
+    def test_generate_route_only_accepts_post(self, client: FlaskClient) -> None:
+        response = client.get("/generate")
+        assert response.status_code == 405
+
+    def test_post_to_index_is_not_allowed(self, client: FlaskClient) -> None:
+        response = client.post("/", data={})
+        assert response.status_code == 405
+
+    def test_delete_to_generate_is_not_allowed(self, client: FlaskClient) -> None:
+        response = client.delete("/generate")
+        assert response.status_code == 405
 
 
 # ---------------------------------------------------------------------------
@@ -333,3 +550,95 @@ class TestAppFactory:
     def test_generate_route_only_accepts_post(self, client: FlaskClient) -> None:
         response = client.get("/generate")
         assert response.status_code == 405
+
+    def test_two_app_instances_are_independent(self) -> None:
+        from portrait_prompt_builder import create_app
+
+        app1 = create_app({"TESTING": True, "SECRET_KEY": "key1"})
+        app2 = create_app({"TESTING": True, "SECRET_KEY": "key2"})
+        assert app1.config["SECRET_KEY"] != app2.config["SECRET_KEY"]
+
+    def test_app_has_secret_key_set(self) -> None:
+        from portrait_prompt_builder import create_app
+
+        app = create_app({"TESTING": True})
+        assert app.config.get("SECRET_KEY") is not None
+        assert app.config["SECRET_KEY"] != ""
+
+    def test_app_max_content_length_is_set(self) -> None:
+        from portrait_prompt_builder import create_app
+
+        app = create_app({"TESTING": True})
+        assert app.config.get("MAX_CONTENT_LENGTH") is not None
+        assert app.config["MAX_CONTENT_LENGTH"] > 0
+
+
+# ---------------------------------------------------------------------------
+# Tests: Response content validation
+# ---------------------------------------------------------------------------
+
+
+class TestResponseContent:
+    """Validate specific content in route responses."""
+
+    def test_index_page_has_static_css_link(self, client: FlaskClient) -> None:
+        response = client.get("/")
+        body = response.data.decode("utf-8")
+        assert "style.css" in body
+
+    def test_index_page_has_static_js_link(self, client: FlaskClient) -> None:
+        response = client.get("/")
+        body = response.data.decode("utf-8")
+        assert "app.js" in body
+
+    def test_result_page_has_static_css_link(self, client: FlaskClient) -> None:
+        response = client.post("/generate", data=MINIMAL_FORM_DATA)
+        body = response.data.decode("utf-8")
+        assert "style.css" in body
+
+    def test_result_page_has_static_js_link(self, client: FlaskClient) -> None:
+        response = client.post("/generate", data=MINIMAL_FORM_DATA)
+        body = response.data.decode("utf-8")
+        assert "app.js" in body
+
+    def test_result_page_contains_metadata_decade(self, client: FlaskClient) -> None:
+        response = client.post("/generate", data=MINIMAL_FORM_DATA)
+        body = response.data.decode("utf-8")
+        assert "1980s" in body
+
+    def test_result_page_contains_metadata_mood(self, client: FlaskClient) -> None:
+        response = client.post("/generate", data=MINIMAL_FORM_DATA)
+        body = response.data.decode("utf-8")
+        assert "happy" in body.lower() or "Happy" in body
+
+    def test_result_page_contains_word_count_info(self, client: FlaskClient) -> None:
+        response = client.post("/generate", data=MINIMAL_FORM_DATA)
+        body = response.data.decode("utf-8")
+        assert "word" in body.lower()
+
+    def test_index_page_contains_generate_button(self, client: FlaskClient) -> None:
+        response = client.get("/")
+        body = response.data.decode("utf-8")
+        assert "generate" in body.lower()
+
+    def test_result_page_has_link_back_to_home(self, client: FlaskClient) -> None:
+        response = client.post("/generate", data=MINIMAL_FORM_DATA)
+        body = response.data.decode("utf-8")
+        assert 'href="/"' in body or "href='/'" in body
+
+    def test_result_page_contains_portrait_prompt_js_variable(self, client: FlaskClient) -> None:
+        """The result page should inject the prompt text as a JS variable."""
+        response = client.post("/generate", data=MINIMAL_FORM_DATA)
+        body = response.data.decode("utf-8")
+        assert "PORTRAIT_PROMPT" in body
+
+    def test_result_page_contains_inputs_summary(self, client: FlaskClient) -> None:
+        response = client.post("/generate", data=MINIMAL_FORM_DATA)
+        body = response.data.decode("utf-8")
+        # The result page shows a summary of what the user provided
+        assert "suburban kitchen" in body or "yellow wallpaper" in body
+
+    def test_result_page_contains_clothing_in_summary(self, client: FlaskClient) -> None:
+        response = client.post("/generate", data=MINIMAL_FORM_DATA)
+        body = response.data.decode("utf-8")
+        assert "polo shirt" in body or "corduroy" in body
