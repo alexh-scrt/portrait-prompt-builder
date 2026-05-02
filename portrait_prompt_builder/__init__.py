@@ -10,17 +10,21 @@ Example usage::
 
     app = create_app()
     app.run(debug=True)
+
+Running directly::
+
+    python -m flask --app portrait_prompt_builder run
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from flask import Flask
 
 
-def create_app(test_config: dict | None = None) -> "Flask":
+def create_app(test_config: dict[str, Any] | None = None) -> "Flask":
     """Application factory for the Portrait Prompt Builder Flask app.
 
     Creates and configures a Flask application instance.  All route
@@ -41,9 +45,14 @@ def create_app(test_config: dict | None = None) -> "Flask":
     Raises:
         ImportError: If the internal ``app`` module cannot be imported
             (indicates a broken installation).
+
+    Example::
+
+        >>> from portrait_prompt_builder import create_app
+        >>> app = create_app({"TESTING": True, "SECRET_KEY": "test"})
+        >>> app.testing
+        True
     """
-    # Defer the real implementation to app.py so that the factory can be
-    # imported without triggering circular imports during package loading.
     from portrait_prompt_builder.app import build_app  # noqa: PLC0415
 
     return build_app(test_config=test_config)
